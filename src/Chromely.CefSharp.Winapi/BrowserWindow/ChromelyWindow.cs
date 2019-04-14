@@ -1,13 +1,22 @@
-﻿using Chromely.Core;
+﻿using System;
+using Chromely.Core.Host;
+using Chromely.Core;
+using Chromely.Core.Infrastructure;
 
 namespace Chromely.CefSharp.Winapi.BrowserWindow
 {
-    using Chromely.Core.Host;
-
     public static class ChromelyWindow
     {
-        public static IChromelyWindow Create(ChromelyConfiguration config)
+        public static IChromelyWindow Create(Host type, ChromelyConfiguration config)
         {
+            if (type != Host.Winapi)
+            {
+                string message =
+                    $"Application  host type of {type.ToString()} is not supported for this library. Please try a different dll.";
+                Log.Error(message);
+                throw new Exception(message);
+            }
+
             return new CefSharpWindow(config);
         }
     }

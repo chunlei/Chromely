@@ -345,6 +345,7 @@ namespace Chromely.CefSharp.Winapi.Browser
                     mBrowserCreated = true;
                     var windowInfo = new WindowInfo();
                     windowInfo.SetAsChild(parent);
+                    BrowserSettings.WebSecurity = CefState.Disabled;
                     managedCefBrowserAdapter.CreateBrowser(windowInfo, BrowserSettings, (RequestContext)RequestContext, address);
                 }
                 else
