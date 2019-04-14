@@ -72,6 +72,9 @@ namespace Chromely.Core.RestfulService
         /// <param name="postData">
         /// The post data.
         /// </param>
+        /// <param name="rawJson">
+        /// Raw json request data.
+        /// </param>
         /// <returns>
         /// The <see cref="ChromelyResponse"/>.
         /// </returns>

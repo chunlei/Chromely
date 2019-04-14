@@ -7,6 +7,8 @@
 // </license>
 // --------------------------------------------------------------------------------------------------------------------
 
+using System.Threading;
+
 namespace Chromely.CefGlue.BrowserWindow
 {
     using System;
@@ -17,9 +19,9 @@ namespace Chromely.CefGlue.BrowserWindow
     using System.Xml;
     using System.Xml.Linq;
 
-    using Chromely.CefGlue.Loader;
-    using Chromely.Core;
-    using Chromely.Core.Infrastructure;
+    using Loader;
+    using Core;
+    using Core.Infrastructure;
     using Xilium.CefGlue;
 
     /// <summary>
@@ -132,6 +134,8 @@ namespace Chromely.CefGlue.BrowserWindow
                 stopwatch.Stop();
                 var competedTempFile = LaunchCompletedPage($"Time elapsed: {stopwatch.Elapsed}.");
                 tempFiles.Add(competedTempFile);
+                
+                Thread.Sleep(TimeSpan.FromSeconds(2));
             }
             catch (Exception ex)
             {
@@ -263,7 +267,14 @@ namespace Chromely.CefGlue.BrowserWindow
                 xDocument.WriteTo(writer);
             }
 
-            Process.Start(htmlFileName);
+            if (CefRuntime.Platform == CefRuntimePlatform.Linux)
+            {
+                Process.Start("xdg-open", htmlFileName);
+            }
+            else
+            {
+                Process.Start(htmlFileName);
+            }
 
             return htmlFileName;
         }

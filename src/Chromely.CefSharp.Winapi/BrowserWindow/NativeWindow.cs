@@ -7,14 +7,15 @@
 // </license>
 // --------------------------------------------------------------------------------------------------------------------
 
+// ReSharper disable UnusedMember.Global
 namespace Chromely.CefSharp.Winapi.BrowserWindow
 {
     using System;
     using System.Runtime.InteropServices;
 
-    using Chromely.Core;
-    using Chromely.Core.Host;
-    using Chromely.Core.Infrastructure;
+    using Core;
+    using Core.Host;
+    using Core.Infrastructure;
     using NetCoreEx.Geometry;
     using WinApi.Gdi32;
     using WinApi.Kernel32;
@@ -23,12 +24,17 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
     /// <summary>
     /// The native window.
     /// </summary>
-    public class NativeWindow
+    internal class NativeWindow
     {
+        /// <summary>
+        /// WindowProc ref : prevent GC Collect
+        /// </summary>
+        private WindowProc mWindowProc;
+
         /// <summary>
         /// The m host config.
         /// </summary>
-        private readonly ChromelyConfiguration mHostConfig;
+        protected readonly ChromelyConfiguration HostConfig;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NativeWindow"/> class.
@@ -36,7 +42,7 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
         public NativeWindow()
         {
             Handle = IntPtr.Zero;
-         }
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NativeWindow"/> class.
@@ -47,7 +53,7 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
         public NativeWindow(ChromelyConfiguration hostConfig)
         {
             Handle = IntPtr.Zero;
-            mHostConfig = hostConfig;
+            HostConfig = hostConfig;
         }
 
         /// <summary>
@@ -81,6 +87,14 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
         public void ShowWindow()
         {
             CreateWindow();
+        }
+
+        /// <summary>
+        /// The close window externally.
+        /// </summary>
+        public void CloseWindowExternally()
+        {
+            User32Methods.PostMessage(Handle, (uint)WM.CLOSE, IntPtr.Zero, IntPtr.Zero);
         }
 
         /// <summary>
@@ -191,6 +205,8 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
         {
             var instanceHandle = Kernel32Methods.GetModuleHandle(IntPtr.Zero);
 
+            mWindowProc = WindowProc;
+            
             var wc = new WindowClassEx
             {
                 Size = (uint)Marshal.SizeOf<WindowClassEx>(),
@@ -199,7 +215,7 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
                 IconHandle = GetIconHandle(),
                 Styles = WindowClassStyles.CS_HREDRAW | WindowClassStyles.CS_VREDRAW,
                 BackgroundBrushHandle = new IntPtr((int)StockObject.WHITE_BRUSH),
-                WindowProc = WindowProc,
+                WindowProc = mWindowProc,
                 InstanceHandle = instanceHandle
             };
 
@@ -210,17 +226,24 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
                 return;
             }
 
-            var styles = GetWindowStyles(mHostConfig.HostState);
+            var styles = GetWindowStyles(HostConfig.HostState);
+
+            NativeMethods.RECT rect;
+            rect.Left = 0;
+            rect.Top = 0;
+            rect.Right = HostConfig.HostWidth;
+            rect.Bottom = HostConfig.HostHeight;
+            NativeMethods.AdjustWindowRectEx(ref rect, styles.Item1, false, styles.Item2);
 
             var hwnd = User32Methods.CreateWindowEx(
                 styles.Item2,
                 wc.ClassName,
-                mHostConfig.HostTitle,
+                HostConfig.HostTitle,
                 styles.Item1,
                 0,
                 0,
-                mHostConfig.HostWidth,
-                mHostConfig.HostHeight,
+                rect.Right - rect.Left,
+                rect.Bottom - rect.Top,   
                 IntPtr.Zero,
                 IntPtr.Zero,
                 instanceHandle,
@@ -299,8 +322,14 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
         /// </returns>
         private Tuple<WindowStyles, WindowExStyles, ShowWindowCommands> GetWindowStyles(WindowState state)
         {
-            WindowStyles styles = WindowStyles.WS_OVERLAPPEDWINDOW | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_CLIPSIBLINGS;
-            WindowExStyles exStyles = WindowExStyles.WS_EX_APPWINDOW | WindowExStyles.WS_EX_WINDOWEDGE;
+            var styles = WindowStyles.WS_OVERLAPPEDWINDOW | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_CLIPSIBLINGS;
+            var exStyles = WindowExStyles.WS_EX_APPWINDOW | WindowExStyles.WS_EX_WINDOWEDGE;
+
+            if (HostConfig.HostFrameless)
+            {
+                styles = WindowStyles.WS_POPUPWINDOW | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_CLIPSIBLINGS;
+                exStyles = WindowExStyles.WS_EX_TOOLWINDOW;
+            }
 
             switch (state)
             {
@@ -309,14 +338,13 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
 
                 case WindowState.Maximize:
                 {
-                    styles = WindowStyles.WS_OVERLAPPEDWINDOW | WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_MAXIMIZE;
-                    exStyles = WindowExStyles.WS_EX_APPWINDOW | WindowExStyles.WS_EX_WINDOWEDGE;
+                    styles |= WindowStyles.WS_MAXIMIZE;
                     return new Tuple<WindowStyles, WindowExStyles, ShowWindowCommands>(styles, exStyles, ShowWindowCommands.SW_SHOWMAXIMIZED);
                 }
 
                 case WindowState.Fullscreen:
                 {
-                    styles = WindowStyles.WS_CLIPCHILDREN | WindowStyles.WS_CLIPSIBLINGS | WindowStyles.WS_MAXIMIZE;
+                    styles |= WindowStyles.WS_MAXIMIZE;
                     exStyles = WindowExStyles.WS_EX_TOOLWINDOW;
                     return new Tuple<WindowStyles, WindowExStyles, ShowWindowCommands>(styles, exStyles, ShowWindowCommands.SW_SHOWMAXIMIZED);
                 }
@@ -333,13 +361,8 @@ namespace Chromely.CefSharp.Winapi.BrowserWindow
         /// </returns>
         private IntPtr GetIconHandle()
         {
-            IntPtr? hIcon = NativeMethods.LoadIconFromFile(this.mHostConfig.HostIconFile);
-            if (hIcon == null)
-            {
-                return User32Helpers.LoadIcon(IntPtr.Zero, SystemIcon.IDI_APPLICATION);
-            }
-
-            return hIcon.Value;
+            var hIcon = NativeMethods.LoadIconFromFile(HostConfig.HostIconFile);
+            return hIcon ?? User32Helpers.LoadIcon(IntPtr.Zero, SystemIcon.IDI_APPLICATION);
         }
     }
 }

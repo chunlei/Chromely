@@ -9,15 +9,16 @@
 
 using System;
 using Chromely.CefGlue.Browser;
+using Chromely.CefGlue.BrowserWindow;
 using Chromely.Core;
 using Xilium.CefGlue;
 
-namespace Chromely.CefGlue.BrowserWindow
+namespace Chromely.CefGlue.Gtk.BrowserWindow
 {
     /// <summary>
     /// The window.
     /// </summary>
-    public class GtkWindow : GtkNativeWindow, IWindow
+    public class Window : NativeWindow, IWindow
     {
         /// <summary>
         /// The host/app/window application.
@@ -40,7 +41,7 @@ namespace Chromely.CefGlue.BrowserWindow
         private IntPtr mBrowserWindowHandle;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="GtkWindow"/> class.
+        /// Initializes a new instance of the <see cref="Window"/> class.
         /// </summary>
         /// <param name="application">
         /// The application.
@@ -48,7 +49,7 @@ namespace Chromely.CefGlue.BrowserWindow
         /// <param name="hostConfig">
         /// The host config.
         /// </param>
-        public GtkWindow(HostBase application, ChromelyConfiguration hostConfig)
+        public Window(HostBase application, ChromelyConfiguration hostConfig)
             : base(hostConfig)
         {
             mHostConfig = hostConfig;
@@ -70,6 +71,14 @@ namespace Chromely.CefGlue.BrowserWindow
         public void CenterToScreen()
         {
             //TODO: Implement
+        }
+
+        /// <summary>
+        /// The exit - externally/programatically.
+        /// </summary>
+        public void Exit()
+        {
+            mApplication?.Quit();
         }
 
         #region Dispose
@@ -146,7 +155,7 @@ namespace Chromely.CefGlue.BrowserWindow
                     int height;
                     GetSize(out width, out height);
 
-                    GtkNativeMethods.SetWindowPos(mBrowserWindowHandle, IntPtr.Zero, 0, 0, width, height);
+                    NativeMethods.SetWindowPos(mBrowserWindowHandle, IntPtr.Zero, 0, 0, width, height);
                 }
             }
             else
@@ -166,7 +175,7 @@ namespace Chromely.CefGlue.BrowserWindow
         /// </param>
         protected override void OnExit(object sender, EventArgs e)
         {
-            mApplication.Quit();
+            mApplication?.Quit();
         }
 
         /// <summary>
@@ -191,7 +200,7 @@ namespace Chromely.CefGlue.BrowserWindow
                     int height;
                     GetSize(out width, out height);
 
-                    GtkNativeMethods.SetWindowPos(mBrowserWindowHandle, IntPtr.Zero, 0, 0, width, height);
+                    NativeMethods.SetWindowPos(mBrowserWindowHandle, IntPtr.Zero, 0, 0, width, height);
                 }
             }
         }
