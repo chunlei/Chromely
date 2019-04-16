@@ -1,22 +1,13 @@
 ﻿using Chromely.Core;
 using System;
 using Chromely.Core.Host;
-using Chromely.Core.Infrastructure;
 
 namespace Chromely.CefGlue.Gtk.BrowserWindow
 {
     public static class ChromelyWindow
     {
-        public static IChromelyWindow Create(Host type, ChromelyConfiguration config)
+        public static IChromelyWindow Create(ChromelyConfiguration config)
         {
-            if (type != Host.Gtk)
-            {
-                string message =
-                    $"Application host type of {type.ToString()} is not supported for this library. Please try a different dll.";
-                Log.Error(message);
-                throw new Exception(message);
-            }
-
             return new CefGlueWindow(config);
         }
     }
